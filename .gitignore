@@ -104,7 +104,7 @@
 **/work/*
 *.ini
 **simulation/modelsim*
-**Lab2_sys/*
+**Lab3_sys/*
 
 # Signal taps
 *.stp
