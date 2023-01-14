@@ -5,6 +5,7 @@
 #include <alt_types.h>
 #include <stdio.h>
 #include <altera_avalon_pio_regs.h>
+#include <math.h>
 
 
 //Registers
@@ -29,9 +30,9 @@ unsigned int DATAX0, DATAX1, x_unsigned;
 unsigned int DATAY0, DATAY1, y_unsigned;
 unsigned int DATAZ0, DATAZ1, z_unsigned; 
 int x_signed, y_signed, z_signed;
-int X, Y, Z;
+int X_g, Y_g, Z_g;
 enum axis { X_axis, Y_axis, Z_axis};
-float g_range_settings = 2*9.81;  			//By default, the range is + or - 2g
+float mg_LSB = 4.3;						//For the default range : + or - 2g			
 
 //	7 segments
 int c0 = 0, c1 = 0, c2 = 0, c3 = 0, c4 = 0, c5 = 0;
@@ -123,28 +124,28 @@ void sev_seg_print(int value){
 }
 
 void axis_calc(enum axis a, unsigned int value0, unsigned int value1){
-	int data_unsigned = 0, data_signed = 0, data = 0;
+	int data_unsigned = 0, data_signed = 0, data_mg = 0;
 	
 	data_unsigned = (value1 << 8) | value0;
 	
 	data_signed = comp2(data_unsigned);
 	
-	data = (1000 * data_signed * g_range_settings) / 32767;		//Value in milli
+	data_mg = round( mg_LSB * data_signed );								//Value in milli g
 	
 	if (a == X_axis){
 		x_unsigned = data_unsigned;
 		x_signed = data_signed;
-		X = data;
+		X_g = data_mg;
 	}
 	else if (a == Y_axis){
 		y_unsigned = data_unsigned;
 		y_signed = data_signed;
-		Y = data;
+		Y_g = data_mg;
 	}
 	else if (a == Z_axis){
 		z_unsigned = data_unsigned;
 		z_signed = data_signed;
-		Z = data;
+		Z_g = data_mg;
 	}
 	else {
 		alt_printf("Problem\n");
@@ -155,17 +156,17 @@ void UART_print(enum axis a){
 	if (a == X_axis){
 		printf("x_unsigned : %d\t\t", x_unsigned);
 		printf("x_signed : %d\t\t", x_signed);
-		printf("X  : %d\n", X);
+		printf("X_g  : %d\n", X_g);
 	}
 	else if (a == Y_axis){
 		printf("y_unsigned : %d\t\t", y_unsigned);
 		printf("y_signed : %d\t\t", y_signed);
-		printf("Y  : %d\n", Y);
+		printf("Y_g  : %d\n", Y_g);
 	}
 	else if (a == Z_axis){
 		printf("z_unsigned : %d\t\t", z_unsigned);
 		printf("z_signed : %d\t\t", z_signed);
-		printf("Z  : %d\n", Z);
+		printf("Z_g  : %d\n", Z_g);
 	}
 	else {
 		alt_printf("Problem\n");
@@ -209,7 +210,7 @@ int main(int argc, char *argv[])
 		printf("\n");
 		
 		//Print on the 7 segments
-		sev_seg_print(x_signed);
+		sev_seg_print(X_g);
 
 		//Delay
         usleep(250000);
