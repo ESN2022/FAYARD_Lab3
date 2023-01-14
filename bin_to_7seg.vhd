@@ -18,6 +18,10 @@ begin
 					"11111000" when input="0111" else
 					"10000000" when input="1000" else
 					"10010000" when input="1001" else
+					
+					"10111111" when input="1010" else		--(10) Sign : -
+					"11111111" when input="1011" else		--(11) Shut down
+					
 					"00000000";
 end arch_bin_to_7seg;
 
