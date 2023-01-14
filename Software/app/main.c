@@ -181,7 +181,7 @@ void UART_print(enum axis a){
 static void push_b_ISR (void * context, alt_u32 id)
 {
 	//Choose the axis to display (0 = X ; 1 = Y; 2 = Z)
-	if (print_sev_seg < 3){
+	if (print_sev_seg < 2){
 		print_sev_seg = print_sev_seg + 1;
 	}
 	else{
