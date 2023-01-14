@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <altera_avalon_pio_regs.h>
 #include <math.h>
+#include <sys/alt_irq.h>
+#include <alt_types.h>
 
 
 //Registers
@@ -38,6 +40,9 @@ float mg_LSB = 4.3;						//For the default range : + or - 2g
 int c0 = 0, c1 = 0, c2 = 0, c3 = 0, c4 = 0, c5 = 0;
 int sev_seg = 0;
 
+//Push button ISR
+int print_sev_seg = 0;
+
 
 //Functions
 int comp2(unsigned int value){
@@ -55,7 +60,7 @@ unsigned int read_byte(int reg){
 	I2C_start(OPENCORES_I2C_0_BASE,ADXL345_address,0);      //Start bit + slave address + write
 	I2C_write(OPENCORES_I2C_0_BASE,reg,0);       			//Register
 	I2C_start(OPENCORES_I2C_0_BASE,ADXL345_address,1);      //Start + slave address + read
-	i2c_data =  I2C_read(OPENCORES_I2C_0_BASE,1);             	//Collect last data
+	i2c_data =  I2C_read(OPENCORES_I2C_0_BASE,1);           //Collect last data
 	
 	return i2c_data;
 }
@@ -173,6 +178,31 @@ void UART_print(enum axis a){
 	}
 }
 
+static void push_b_ISR (void * context, alt_u32 id)
+{
+	//Choose the axis to display (0 = X ; 1 = Y; 2 = Z)
+	if (print_sev_seg < 3){
+		print_sev_seg = print_sev_seg + 1;
+	}
+	else{
+		print_sev_seg = 0;
+	}
+	
+	//Clear interruption
+	IOWR_ALTERA_AVALON_PIO_EDGE_CAP(PIO_1_BASE,0x0F);
+}
+
+void push_b_ISR_init(){
+    //Set the input that trigger interrupts (slide buttons)
+	IOWR_ALTERA_AVALON_PIO_IRQ_MASK(PIO_1_BASE, 0x01);
+
+	//Reset the edge capture register
+	IOWR_ALTERA_AVALON_PIO_EDGE_CAP(PIO_1_BASE,0x01);
+
+	//Register the ISR to the corresponding interrupt
+	alt_irq_register (PIO_1_IRQ, NULL, (void*) push_b_ISR);
+}
+
 
 //Main
 int main(int argc, char *argv[])
@@ -191,6 +221,9 @@ int main(int argc, char *argv[])
     else {
         alt_printf("Communication pb\n");
     }
+    
+    //Push button interruption init
+	push_b_ISR_init();
 
     while(1){
 		//Read the ADXL345 value
@@ -210,7 +243,15 @@ int main(int argc, char *argv[])
 		printf("\n");
 		
 		//Print on the 7 segments
-		sev_seg_print(X_g);
+		if (print_sev_seg == 0){
+			sev_seg_print(X_g);
+		}
+		else if (print_sev_seg == 1){
+			sev_seg_print(Y_g);
+		}
+		else {
+			sev_seg_print(Z_g);
+		}
 
 		//Delay
         usleep(250000);
