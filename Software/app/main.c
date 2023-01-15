@@ -14,6 +14,9 @@
 
 //Registers
 #define ADXL345_address 0x1D
+#define ADXL345_OFSX  	0x1E
+#define ADXL345_OFSY  	0x1F
+#define ADXL345_OFSZ  	0x20
 #define ADXL345_DATAX0  0x32
 #define ADXL345_DATAX1  0x33
 #define ADXL345_DATAY0  0x34
@@ -36,7 +39,7 @@ unsigned int DATAZ0, DATAZ1, z_unsigned;
 int x_signed, y_signed, z_signed;
 int X_g, Y_g, Z_g;
 enum axis { X_axis, Y_axis, Z_axis};
-float mg_LSB = 4.3;						//For the default range : + or - 2g			
+float mg_LSB = 3.9;						//Typical for the default range : + or - 2g			
 
 //	7 segments
 int c0 = 0, c1 = 0, c2 = 0, c3 = 0, c4 = 0, c5 = 0;
@@ -48,11 +51,16 @@ int print_sev_seg = 0;
 //	Timer IRQ
 int timer_irq_flag = 0;
 
+//	Offsets
+int X_offset = 0;
+int Y_offset = 0;
+int Z_offset = 0;
+
 
 //Functions
 int comp2(unsigned int value){
 	if(value & 0x8000){
-		c2 = -(((~value)& 0xFFFF) + 1);
+		c2 = -(((~value) & 0xFFFF) + 1);
 	}
 	else {
 		c2 = value;
@@ -61,11 +69,17 @@ int comp2(unsigned int value){
 	return c2;
 }
 
+void write_byte(int reg, int data){
+	I2C_start(OPENCORES_I2C_0_BASE,ADXL345_address,0);      //Start bit + slave address + write
+	I2C_write(OPENCORES_I2C_0_BASE,reg,0);       			//Register
+	I2C_write(OPENCORES_I2C_0_BASE,data,1);       			//Write data + stop bit
+}
+
 unsigned int read_byte(int reg){
 	I2C_start(OPENCORES_I2C_0_BASE,ADXL345_address,0);      //Start bit + slave address + write
 	I2C_write(OPENCORES_I2C_0_BASE,reg,0);       			//Register
 	I2C_start(OPENCORES_I2C_0_BASE,ADXL345_address,1);      //Start + slave address + read
-	i2c_data =  I2C_read(OPENCORES_I2C_0_BASE,1);           //Collect last data
+	i2c_data =  I2C_read(OPENCORES_I2C_0_BASE,1);           //Collect last data (stop bit)
 	
 	return i2c_data;
 }
@@ -228,6 +242,24 @@ void timer_IRQ_init(){
 	alt_irq_register (TIMER_0_IRQ , NULL, (void*) timer_IRQ);
 }
 
+void set_offset(enum axis a, int value){
+	int reg_offset;
+	value = value & 0xFFFF;
+	if (a == X_axis){
+		reg_offset = ADXL345_OFSX;
+	}
+	else if (a == Y_axis){
+		reg_offset = ADXL345_OFSY;
+	}
+	else if (a == Z_axis){
+		reg_offset = ADXL345_OFSZ;
+	}
+	else {
+		alt_printf("Problem\n");
+	}
+    write_byte(reg_offset,value);
+}
+
 
 //Main
 int main(int argc, char *argv[])
@@ -252,6 +284,14 @@ int main(int argc, char *argv[])
 	
 	//Timer interruption init
 	timer_IRQ_init();
+	
+	//Offsets
+    //set_offset(X_axis, 2);
+    //set_offset(Y_axis, 6);
+    //set_offset(Z_axis, 0);
+    alt_printf("X offset: %x\t;",read_byte(ADXL345_OFSX));
+    alt_printf("\tY offset: %x\t",read_byte(ADXL345_OFSY));
+    alt_printf("\tZ offset: %x\n",read_byte(ADXL345_OFSZ));
 
     while(1){
 		if (timer_irq_flag == 1) {
