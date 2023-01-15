@@ -439,7 +439,7 @@
   <parameter name="alwaysRun" value="false" />
   <parameter name="counterSize" value="32" />
   <parameter name="fixedPeriod" value="true" />
-  <parameter name="period" value="1" />
+  <parameter name="period" value="250" />
   <parameter name="periodUnits" value="MSEC" />
   <parameter name="resetOutput" value="false" />
   <parameter name="snapshot" value="true" />

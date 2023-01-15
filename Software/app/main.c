@@ -8,6 +8,8 @@
 #include <math.h>
 #include <sys/alt_irq.h>
 #include <alt_types.h>
+#include <altera_avalon_timer_regs.h>
+#include <altera_avalon_timer.h>
 
 
 //Registers
@@ -40,8 +42,11 @@ float mg_LSB = 4.3;						//For the default range : + or - 2g
 int c0 = 0, c1 = 0, c2 = 0, c3 = 0, c4 = 0, c5 = 0;
 int sev_seg = 0;
 
-//Push button ISR
+//	Push button IRQ
 int print_sev_seg = 0;
+
+//	Timer IRQ
+int timer_irq_flag = 0;
 
 
 //Functions
@@ -159,18 +164,18 @@ void axis_calc(enum axis a, unsigned int value0, unsigned int value1){
 
 void UART_print(enum axis a){
 	if (a == X_axis){
-		printf("x_unsigned : %d\t\t", x_unsigned);
-		printf("x_signed : %d\t\t", x_signed);
+		//printf("x_unsigned : %d\t\t", x_unsigned);
+		//printf("x_signed : %d\t\t", x_signed);
 		printf("X_g  : %d\n", X_g);
 	}
 	else if (a == Y_axis){
-		printf("y_unsigned : %d\t\t", y_unsigned);
-		printf("y_signed : %d\t\t", y_signed);
+		//printf("y_unsigned : %d\t\t", y_unsigned);
+		//printf("y_signed : %d\t\t", y_signed);
 		printf("Y_g  : %d\n", Y_g);
 	}
 	else if (a == Z_axis){
-		printf("z_unsigned : %d\t\t", z_unsigned);
-		printf("z_signed : %d\t\t", z_signed);
+		//printf("z_unsigned : %d\t\t", z_unsigned);
+		//printf("z_signed : %d\t\t", z_signed);
 		printf("Z_g  : %d\n", Z_g);
 	}
 	else {
@@ -178,7 +183,7 @@ void UART_print(enum axis a){
 	}
 }
 
-static void push_b_ISR (void * context, alt_u32 id)
+static void push_b_IRQ (void * context, alt_u32 id)
 {
 	//Choose the axis to display (0 = X ; 1 = Y; 2 = Z)
 	if (print_sev_seg < 2){
@@ -189,10 +194,10 @@ static void push_b_ISR (void * context, alt_u32 id)
 	}
 	
 	//Clear interruption
-	IOWR_ALTERA_AVALON_PIO_EDGE_CAP(PIO_1_BASE,0x0F);
+	IOWR_ALTERA_AVALON_PIO_EDGE_CAP(PIO_1_BASE,0x01);
 }
 
-void push_b_ISR_init(){
+void push_b_IRQ_init(){
     //Set the input that trigger interrupts (slide buttons)
 	IOWR_ALTERA_AVALON_PIO_IRQ_MASK(PIO_1_BASE, 0x01);
 
@@ -200,7 +205,27 @@ void push_b_ISR_init(){
 	IOWR_ALTERA_AVALON_PIO_EDGE_CAP(PIO_1_BASE,0x01);
 
 	//Register the ISR to the corresponding interrupt
-	alt_irq_register (PIO_1_IRQ, NULL, (void*) push_b_ISR);
+	alt_irq_register (PIO_1_IRQ, NULL, (void*) push_b_IRQ);
+}
+
+static void timer_IRQ (void * context, alt_u32 id)
+{
+    //Timer irq flag raised
+    timer_irq_flag = 1;
+
+	//Clear the interrupt
+	IOWR_ALTERA_AVALON_TIMER_STATUS(TIMER_0_BASE, 0x00);
+}
+
+void timer_IRQ_init(){
+	//Clear the interrupt
+	IOWR_ALTERA_AVALON_TIMER_STATUS(TIMER_0_BASE, 0x00);
+
+	//Settle parameters : continous count, IRQ request + Start
+	IOWR_ALTERA_AVALON_TIMER_CONTROL(TIMER_0_BASE , ALTERA_AVALON_TIMER_CONTROL_CONT_MSK | ALTERA_AVALON_TIMER_CONTROL_START_MSK | ALTERA_AVALON_TIMER_CONTROL_ITO_MSK);
+
+	//Register the ISR to the corresponding interrupt
+	alt_irq_register (TIMER_0_IRQ , NULL, (void*) timer_IRQ);
 }
 
 
@@ -223,38 +248,42 @@ int main(int argc, char *argv[])
     }
     
     //Push button interruption init
-	push_b_ISR_init();
+	push_b_IRQ_init();
+	
+	//Timer interruption init
+	timer_IRQ_init();
 
     while(1){
-		//Read the ADXL345 value
-        read_axis(X_axis);   
-        read_axis(Y_axis); 
-        read_axis(Z_axis);        
-        
-        //Calculate the 2 complement and value in m/s²
-        axis_calc(X_axis, DATAX0, DATAX1);
-        axis_calc(Y_axis, DATAY0, DATAY1);
-        axis_calc(Z_axis, DATAZ0, DATAZ1);
-		
-		//Print the values via UART
-		UART_print(X_axis);
-		UART_print(Y_axis);
-		UART_print(Z_axis);
-		printf("\n");
-		
-		//Print on the 7 segments
-		if (print_sev_seg == 0){
-			sev_seg_print(X_g);
+		if (timer_irq_flag == 1) {
+			//Read the ADXL345 value
+			read_axis(X_axis);   
+			read_axis(Y_axis); 
+			read_axis(Z_axis);        
+			
+			//Calculate the 2 complement and value in m/s²
+			axis_calc(X_axis, DATAX0, DATAX1);
+			axis_calc(Y_axis, DATAY0, DATAY1);
+			axis_calc(Z_axis, DATAZ0, DATAZ1);
+			
+			//Print the values via UART
+			UART_print(X_axis);
+			UART_print(Y_axis);
+			UART_print(Z_axis);
+			printf("\n");
+			
+			//Print on the 7 segments
+			if (print_sev_seg == 0){
+				sev_seg_print(X_g);
+			}
+			else if (print_sev_seg == 1){
+				sev_seg_print(Y_g);
+			}
+			else {
+				sev_seg_print(Z_g);
+			}
+			
+			timer_irq_flag = 0;
 		}
-		else if (print_sev_seg == 1){
-			sev_seg_print(Y_g);
-		}
-		else {
-			sev_seg_print(Z_g);
-		}
-
-		//Delay
-        usleep(250000);
 	}
 
     return 0;
