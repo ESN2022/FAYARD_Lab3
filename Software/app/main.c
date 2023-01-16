@@ -61,7 +61,7 @@ int Z_offset = -1;
 //Functions
 int comp2(unsigned int value){
 	if(value & 0x8000){                         //If the MSB is 1 (negative number)
-		comp_2 = -(((~value) & 0xFFFF) + 1);    //2-complement
+		comp_2 = -(((~value) & 0xFFFF) + 1);    //2-complement on 16 bits
 	}
 	else {
 		comp_2 = value;
@@ -252,7 +252,7 @@ void timer_IRQ_init(){
 void set_offset(enum axis a, int value){
 	int reg_offset;
 
-	value = value & 0xFFFF;
+	//value = value & 0xFFFF;
 
 	//Assign the register to set the offset, based on the chosen axis
 	if (a == X_axis){
