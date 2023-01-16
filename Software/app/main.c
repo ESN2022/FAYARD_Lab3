@@ -30,16 +30,17 @@
 int chip_adress = -1;
 
 //	I2C
-int i2c_data;
+int i2c_data = 0;
 
 //	Acceleration
-unsigned int DATAX0, DATAX1, x_unsigned;
-unsigned int DATAY0, DATAY1, y_unsigned;
-unsigned int DATAZ0, DATAZ1, z_unsigned; 
-int x_signed, y_signed, z_signed;
-int X_g, Y_g, Z_g;
+unsigned int DATAX0 = 0, DATAX1 = 0, x_unsigned = 0;
+unsigned int DATAY0 = 0, DATAY1 = 0, y_unsigned = 0;
+unsigned int DATAZ0 = 0, DATAZ1 = 0, z_unsigned = 0;
+int x_signed = 0, y_signed = 0, z_signed = 0;
+int X_g = 0, Y_g = 0, Z_g = 0;
 enum axis { X_axis, Y_axis, Z_axis};
-float mg_LSB = 3.9;						//Typical for the default range : + or - 2g			
+float mg_LSB = 3.9;						//Typical for the default range : + or - 2g
+int comp_2 = 0;
 
 //	7 segments
 int c0 = 0, c1 = 0, c2 = 0, c3 = 0, c4 = 0, c5 = 0;
@@ -52,41 +53,43 @@ int print_sev_seg = 0;
 int timer_irq_flag = 0;
 
 //	Offsets
-int X_offset = 0;
-int Y_offset = 0;
-int Z_offset = 0;
+int X_offset = 3;
+int Y_offset = 6;
+int Z_offset = -1;
 
 
 //Functions
 int comp2(unsigned int value){
-	if(value & 0x8000){
-		c2 = -(((~value) & 0xFFFF) + 1);
+	if(value & 0x8000){                         //If the MSB is 1 (negative number)
+		comp_2 = -(((~value) & 0xFFFF) + 1);    //2-complement
 	}
 	else {
-		c2 = value;
+		comp_2 = value;
 	}
-	
-	return c2;
+
+	return comp_2;
 }
 
 void write_byte(int reg, int data){
-	I2C_start(OPENCORES_I2C_0_BASE,ADXL345_address,0);      //Start bit + slave address + write
-	I2C_write(OPENCORES_I2C_0_BASE,reg,0);       			//Register
+	I2C_start(OPENCORES_I2C_0_BASE,ADXL345_address,0);      //Start bit + slave address + write bit
+	I2C_write(OPENCORES_I2C_0_BASE,reg,0);       			//Register to write in
 	I2C_write(OPENCORES_I2C_0_BASE,data,1);       			//Write data + stop bit
 }
 
 unsigned int read_byte(int reg){
 	I2C_start(OPENCORES_I2C_0_BASE,ADXL345_address,0);      //Start bit + slave address + write
-	I2C_write(OPENCORES_I2C_0_BASE,reg,0);       			//Register
-	I2C_start(OPENCORES_I2C_0_BASE,ADXL345_address,1);      //Start + slave address + read
+	I2C_write(OPENCORES_I2C_0_BASE,reg,0);       			//Register to read on
+	I2C_start(OPENCORES_I2C_0_BASE,ADXL345_address,1);      //Start + slave address + read bit
 	i2c_data =  I2C_read(OPENCORES_I2C_0_BASE,1);           //Collect last data (stop bit)
-	
+
 	return i2c_data;
 }
 
 void read_axis(enum axis a){
-	int register0, register1;
-	int DATA0=0, DATA1=0;
+	int register0 = 0, register1 = 0;
+	int DATA0 = 0, DATA1 = 0;
+
+	//Assign the register to read, based on the chosen axis
 	if (a == X_axis){
 		register0 = ADXL345_DATAX0;
 		register1 = ADXL345_DATAX1;
@@ -102,10 +105,12 @@ void read_axis(enum axis a){
 	else {
 		alt_printf("Problem\n");
 	}
-	
+
+	//Read the LSB and MSB register value
 	DATA0 = read_byte(register0);
 	DATA1 = read_byte(register1);
 
+	//Assign the read data on the corresponding values
 	if (a == X_axis){
 		DATAX0 = DATA0;
 		DATAX1 = DATA1;
@@ -125,7 +130,7 @@ void read_axis(enum axis a){
 
 void sev_seg_print(int value){
 	if (value<0){
-		c5 = 10;
+		c5 = 10;                                        //Corresponds to "-" in the VHDL (for negative numbers)
 		c4 = -value /10000;
 		c3 = (-value / 1000) % 10;
 		c2 = (-value /100) % 10;
@@ -133,7 +138,7 @@ void sev_seg_print(int value){
 		c0 = -value % 10;
 	}
 	else{
-		c5 = 11;
+		c5 = 11;                                        //Corresponds to nothing on in the VHDL (for positive numbers)
 		c4 = value /10000;
 		c3 = (value / 1000) % 10;
 		c2 = (value /100) % 10;
@@ -141,21 +146,23 @@ void sev_seg_print(int value){
 		c0 = value % 10;
 	}
 
+	//Number to send to the 7-segment PIO
 	sev_seg = (c5 << 20) + (c4 << 16) +(c3 << 12) + (c2 << 8) + (c1 <<4) + c0;
-	
+
 	//Write the number on the 7 segment
 	IOWR_ALTERA_AVALON_PIO_DATA(PIO_0_BASE,sev_seg);
 }
 
 void axis_calc(enum axis a, unsigned int value0, unsigned int value1){
 	int data_unsigned = 0, data_signed = 0, data_mg = 0;
-	
+
 	data_unsigned = (value1 << 8) | value0;
-	
+
 	data_signed = comp2(data_unsigned);
-	
-	data_mg = round( mg_LSB * data_signed );								//Value in milli g
-	
+
+	data_mg = round( mg_LSB * data_signed );			//Value in milli g
+
+	//Assign the calculated data on the corresponding values
 	if (a == X_axis){
 		x_unsigned = data_unsigned;
 		x_signed = data_signed;
@@ -199,14 +206,14 @@ void UART_print(enum axis a){
 
 static void push_b_IRQ (void * context, alt_u32 id)
 {
-	//Choose the axis to display (0 = X ; 1 = Y; 2 = Z)
+	//Choose the axis to display with the push button 1 (0 = X ; 1 = Y; 2 = Z)
 	if (print_sev_seg < 2){
 		print_sev_seg = print_sev_seg + 1;
 	}
 	else{
 		print_sev_seg = 0;
 	}
-	
+
 	//Clear interruption
 	IOWR_ALTERA_AVALON_PIO_EDGE_CAP(PIO_1_BASE,0x01);
 }
@@ -244,7 +251,10 @@ void timer_IRQ_init(){
 
 void set_offset(enum axis a, int value){
 	int reg_offset;
+
 	value = value & 0xFFFF;
+
+	//Assign the register to set the offset, based on the chosen axis
 	if (a == X_axis){
 		reg_offset = ADXL345_OFSX;
 	}
@@ -258,6 +268,12 @@ void set_offset(enum axis a, int value){
 		alt_printf("Problem\n");
 	}
     write_byte(reg_offset,value);
+}
+
+void print_offset(){
+	alt_printf("X offset: %x\t;",read_byte(ADXL345_OFSX));
+    alt_printf("\tY offset: %x\t",read_byte(ADXL345_OFSY));
+    alt_printf("\tZ offset: %x\n",read_byte(ADXL345_OFSZ));
 }
 
 
@@ -278,39 +294,39 @@ int main(int argc, char *argv[])
     else {
         alt_printf("Communication pb\n");
     }
-    
+
     //Push button interruption init
 	push_b_IRQ_init();
-	
+
 	//Timer interruption init
 	timer_IRQ_init();
-	
-	//Offsets
-    //set_offset(X_axis, 2);
-    //set_offset(Y_axis, 6);
-    //set_offset(Z_axis, 0);
-    alt_printf("X offset: %x\t;",read_byte(ADXL345_OFSX));
-    alt_printf("\tY offset: %x\t",read_byte(ADXL345_OFSY));
-    alt_printf("\tZ offset: %x\n",read_byte(ADXL345_OFSZ));
+
+	//Axis offsets
+	print_offset();
+    set_offset(X_axis, X_offset);
+    set_offset(Y_axis, Y_offset);
+    set_offset(Z_axis, Z_offset);
+    print_offset();
+
 
     while(1){
 		if (timer_irq_flag == 1) {
 			//Read the ADXL345 value
-			read_axis(X_axis);   
-			read_axis(Y_axis); 
-			read_axis(Z_axis);        
-			
+			read_axis(X_axis);
+			read_axis(Y_axis);
+			read_axis(Z_axis);
+
 			//Calculate the 2 complement and value in m/s²
 			axis_calc(X_axis, DATAX0, DATAX1);
 			axis_calc(Y_axis, DATAY0, DATAY1);
 			axis_calc(Z_axis, DATAZ0, DATAZ1);
-			
+
 			//Print the values via UART
 			UART_print(X_axis);
 			UART_print(Y_axis);
 			UART_print(Z_axis);
 			printf("\n");
-			
+
 			//Print on the 7 segments
 			if (print_sev_seg == 0){
 				sev_seg_print(X_g);
@@ -321,7 +337,8 @@ int main(int argc, char *argv[])
 			else {
 				sev_seg_print(Z_g);
 			}
-			
+
+            //Clear the timer interrupt flag
 			timer_irq_flag = 0;
 		}
 	}
