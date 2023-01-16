@@ -12,6 +12,26 @@ Comme pour toute architecture de co-design, les IPs de softcore NIOS II et de la
 
 <h2>II.	Progression et résultat</h2>
 
+La première étape réalisée a été d’établir la communication avec l’accéléromètre via I2C. Voici la communication I2C résumé dans la datasheet de l’accéléromètre :
+
+![I2C](https://user-images.githubusercontent.com/103188608/212663096-04248e05-f540-4c31-9b4a-56a53f6bc39d.png)
+
+Pour rappel, la communication est, dans notre cas, gérée par l’IP « opencoresi2c ». Or elle comporte des fonctions software dédiées à la communication I2C disponible dans : opencores_i2c/HAL/src/opencores_i2c.c (de plus, des exemples sont disponibles dans opencores_i2c/Docs/I2C_tests.c) :
+-	L’initialisation de la communication : void I2C_init(alt_u32 base,alt_u32 clk,alt_u32 speed),
+-	Le bit de start ainsi que le registre et le write bit: int I2C_start(alt_u32 base, alt_u32 add, alt_u32 read),
+-	La lecture : alt_u32 I2C_read(alt_u32 base,alt_u32 last),
+-	L’écriture : alt_u32 I2C_write(alt_u32 base,alt_u8 data, alt_u32 last).
+
+Pour ces deux dernières fonctions, on peut remarquer le dernier argument nommé « last » qui permet de dire si la lecture ou l’écriture du registre est la dernière et, si tel est le cas, la fonction va mettre un bit de stop. Autre remarque, les fonctions d’écriture et start retournent un entier qui correspond à l’ « acknowledge » si la valeur est 0 et 1 sinon. C’est ce dernier point qui nous a permis de vérifier la communication entre le FPGA et l’accéléromètre. Après avoir initialisé la communication, la fonction start est lancée en mode écriture (dernier argument à 0) et la valeur retournée est récupéré dans une variable. Si celle-ci est égale à 0 alors la communication avec l’accéléromètre est établie sinon, il y a un problème.
+
+La difficulté principale lors de cette première étape a été de comprendre ce que faisais les fonctions I2C que nous devions utilisée. En effet, la fonction start ne contient pas que le bit de start et ajoute l’adresse de l’esclave (ici l’accéléromètre) ainsi qu’un bit de lecture (1) ou écriture (0). L’explication des fonctions dans opencores_i2c.c et l’étude des exemples ont permis de surmonter cette difficulté.
+
+
+Le deuxième commit correspond à l’ajout de la lecture du registre correspondant aux valeurs d’accélérations de l’axe X. Pour cela, il y a deux registres un pour les MSB et l’autre les LSB et il faut donc les concaténer.
+
+Là encore, la difficulté a été la compréhension des fonctions I2C.
+
+
 https://user-images.githubusercontent.com/103188608/212535822-35af9aca-e10e-43ac-9d87-5a8ae0e9a9dd.mov
 
 
