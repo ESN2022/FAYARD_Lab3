@@ -103,7 +103,7 @@ void read_axis(enum axis a){
 		register1 = ADXL345_DATAZ1;
 	}
 	else {
-		alt_printf("Problem\n");
+		alt_printf("Problem read_axis\n");
 	}
 
 	//Read the LSB and MSB register value
@@ -124,7 +124,7 @@ void read_axis(enum axis a){
 		DATAZ1 = DATA1;
 	}
 	else {
-		alt_printf("Problem\n");
+		alt_printf("Problem read_axis\n");
 	}
 }
 
@@ -179,7 +179,7 @@ void axis_calc(enum axis a, unsigned int value0, unsigned int value1){
 		Z_g = data_mg;
 	}
 	else {
-		alt_printf("Problem\n");
+		alt_printf("Problem axis_calc\n");
 	}
 }
 
@@ -200,7 +200,7 @@ void UART_print(enum axis a){
 		printf("Z_g  : %d\n", Z_g);
 	}
 	else {
-		alt_printf("Problem\n");
+		alt_printf("Problem UART_print\n");
 	}
 }
 
@@ -265,7 +265,7 @@ void set_offset(enum axis a, int value){
 		reg_offset = ADXL345_OFSZ;
 	}
 	else {
-		alt_printf("Problem\n");
+		alt_printf("Problem set_offset\n");
 	}
     write_byte(reg_offset,value);
 }
