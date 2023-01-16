@@ -24,6 +24,8 @@ Pour rappel, la communication est, dans notre cas, gérée par l’IP « opencor
 
 Pour ces deux dernières fonctions, on peut remarquer le dernier argument nommé « last » qui permet de dire si la lecture ou l’écriture du registre est la dernière et, si tel est le cas, la fonction va mettre un bit de stop. Autre remarque, les fonctions d’écriture et start retournent un entier qui correspond à l’ « acknowledge » si la valeur est 0 et 1 sinon. C’est ce dernier point qui nous a permis de vérifier la communication entre le FPGA et l’accéléromètre. Après avoir initialisé la communication, la fonction start est lancée en mode écriture (dernier argument à 0) et la valeur retournée est récupéré dans une variable. Si celle-ci est égale à 0 alors la communication avec l’accéléromètre est établie sinon, il y a un problème.
 
+![Capture](https://user-images.githubusercontent.com/103188608/212713493-578d560d-42e6-46ab-b77e-30a30cb24dc1.PNG)
+
 La difficulté principale lors de cette première étape a été de comprendre ce que faisais les fonctions I2C que nous devions utilisée. En effet, la fonction start ne contient pas que le bit de start et ajoute l’adresse de l’esclave (ici l’accéléromètre) ainsi qu’un bit de lecture (1) ou écriture (0). L’explication des fonctions dans opencores_i2c.c et l’étude des exemples ont permis de surmonter cette difficulté.
 
 
@@ -31,15 +33,17 @@ Le deuxième commit correspond à l’ajout de la lecture du registre correspond
 
 Là encore, la difficulté a été la compréhension des fonctions I2C.
 
+Le troisième commit correspond à plusieurs changements et ajouts. Tout d’abord, une fonction générale nommée « read_axis » a été créé pour la lecture des deux registres d’un axes et qui prend comme argument le nom de l’axe qui est de type énumération. Cette fonction prend appuie sur une autre fonction nommée « read_byte » et qui permet de réaliser la procédure entière pour lire un seul octet. La fonction « axis_calc » permet de réaliser l’ensemble des opérations mathématiques menant à l’obtention de la valeur de l’accélération en milli g :
+-	Concaténation des valeurs de registres MSB et LSB de l’axe,
+-	Utilisation de la fonction « comp2 » permet d’obtenir la valeur signée à partir de la non signée,
+-	Calcul de la valeur en mg en multipliant par la sensibilité (dans la datasheet de l’accéléromètre, typiquement 3,9 mg/LSB).
+La valeur (uniquement de l’axe X dans un premier temps) est affichée sur le 7-segment et l’ensemble des valeurs est affiché via UART.
 
 https://user-images.githubusercontent.com/103188608/212535822-35af9aca-e10e-43ac-9d87-5a8ae0e9a9dd.mov
 
-
-
-
 https://user-images.githubusercontent.com/103188608/212535852-d0ec6811-ad91-406b-92b4-3cfc9c0eca25.mov
 
-
+Le quatrième commit
 
 
 
