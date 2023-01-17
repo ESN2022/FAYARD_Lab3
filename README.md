@@ -33,7 +33,7 @@ Le deuxième commit correspond à l’ajout de la lecture du registre correspond
 
 Là encore, la difficulté a été la compréhension des fonctions I2C.
 
-Le troisième commit correspond à plusieurs changements et ajouts. Tout d’abord, une fonction générale nommée « read_axis » a été créé pour la lecture des deux registres d’un axes et qui prend comme argument le nom de l’axe qui est de type énumération. Cette fonction prend appuie sur une autre fonction nommée « read_byte » et qui permet de réaliser la procédure entière pour lire un seul octet. La fonction « axis_calc » permet de réaliser l’ensemble des opérations mathématiques menant à l’obtention de la valeur de l’accélération en milli g :
+Le troisième et quatrième commit correspondent à plusieurs changements et ajouts. Tout d’abord, une fonction générale nommée « read_axis » a été créé pour la lecture des deux registres d’un axes et qui prend comme argument le nom de l’axe qui est de type énumération. Cette fonction prend appuie sur une autre fonction nommée « read_byte » et qui permet de réaliser la procédure entière pour lire un seul octet. La fonction « axis_calc » permet de réaliser l’ensemble des opérations mathématiques menant à l’obtention de la valeur de l’accélération en milli g :
 -	Concaténation des valeurs de registres MSB et LSB de l’axe,
 -	Utilisation de la fonction « comp2 » permet d’obtenir la valeur signée à partir de la non signée,
 -	Calcul de la valeur en mg en multipliant par la sensibilité (dans la datasheet de l’accéléromètre, typiquement 3,9 mg/LSB).
@@ -43,13 +43,17 @@ https://user-images.githubusercontent.com/103188608/212535822-35af9aca-e10e-43ac
 
 https://user-images.githubusercontent.com/103188608/212535852-d0ec6811-ad91-406b-92b4-3cfc9c0eca25.mov
 
-Le quatrième commit
-
-
+Le cinquième commit est l’ajout de l’interruption liée au bouton poussoir 1 (sur le PIO 1). L’appuie sur ce dernier permet de choisir l’axe dont la valeur sera affichée.
 
 https://user-images.githubusercontent.com/103188608/212535865-99426d56-8d7f-4bb4-bd06-295a3c52bfff.mov
 
+Le sixième commit correspond au remplacement du « usleep » par un timer. Celui-ci est choisi à 250 ms pour que les mesures soient assez rapides lors des changements de mouvements mais restent visible pour l’œil. Lors de l’interruption, un flag est mis à 1. Lors du retour dans le main, lorsque le flag est à 1, l’ensemble des opérations (mesures, calculs, affichage, …) est effectuée, puis le flag est remis à 0.
 
+Les derniers commits correspondent à la calibration de l’accéléromètre. Pour cela, une fonction d’écriture sur le bus I2C est ajouté « write_byte ». Pour calibrer l’accéléromètre, la méthode est la suivante : 
+
+https://user-images.githubusercontent.com/103188608/212877440-5a48741a-67ba-4a04-b726-88c73de82f99.mov
+
+https://user-images.githubusercontent.com/103188608/212877510-825924b3-55dd-4231-a083-0070fd6a80e2.mov
 
 
 <h2>Conclusion</h2>
